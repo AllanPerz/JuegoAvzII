@@ -327,7 +327,7 @@ def game_loop(starting_level):
                             
                             # Boss spawning logic based on player level AND current game level
                             # Only activate boss if player level is high enough for the current game phase
-                            if nivel_actual == 1 and player_level >= 2 and not jefe_activo:
+                            if nivel_actual == 1 and player_level >= 5 and not jefe_activo:
                                 jefe_activo = True
                                 jefe_proyectiles.clear()
                                 jefe_pos = [random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100)]
@@ -336,7 +336,7 @@ def game_loop(starting_level):
                                 jefe_danio = 10
                                 jefe_disparo_delay = 1200
                                 enemies.clear()
-                            elif nivel_actual == 2 and player_level >= 3 and not jefe_activo:
+                            elif nivel_actual == 2 and player_level >= 6 and not jefe_activo:
                                 jefe_activo = True
                                 jefe_proyectiles.clear()
                                 jefe_pos = [random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100)]
@@ -345,7 +345,7 @@ def game_loop(starting_level):
                                 jefe_danio = 15
                                 jefe_disparo_delay = 800
                                 enemies.clear()
-                            elif nivel_actual == 3 and player_level >= 4 and not jefe_activo:
+                            elif nivel_actual == 3 and player_level >= 7 and not jefe_activo:
                                 jefe_activo = True
                                 jefe_proyectiles.clear()
                                 jefe_pos = [random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100)]
@@ -460,7 +460,7 @@ def game_loop(starting_level):
             screen.blit(info_font.render(f"Ralentizador activo: {tiempo_restante:.1f}s", True, WHITE), (10, 110))
 
         # Barra de vida del jugador con etiqueta encima
-        draw_health_bar(10, HEIGHT - 35, 200, 25, player_health, player_max_health, WHITE, GREEN, DARK_RED, "Barra de salud de Pedro", "above")
+        draw_health_bar(10, HEIGHT - 35, 200, 25, player_health, player_max_health, WHITE, GREEN, DARK_RED, "Barra de salud de Kenner", "above")
 
         if jefe_activo:
             jefe_labels = {
