@@ -32,9 +32,21 @@ info_font = pygame.font.SysFont("Arial", 20)
 def cargar_imagen_ruta(ruta, ancho_objetivo, alto_objetivo):
     imagen = pygame.image.load(ruta).convert_alpha()
     original_ancho, original_alto = imagen.get_size()
+    # Para ajustar a la pantalla sin perder el ratio de aspecto, pero llenando el espacio
+    # Si quieres que la imagen se estire completamente para llenar el espacio, usa:
+    # imagen_redimensionada = pygame.transform.scale(imagen, (ancho_objetivo, alto_objetivo))
+    # Si quieres que mantenga el ratio y se ajuste al mayor lado posible sin salirse:
     ratio = min(ancho_objetivo / original_ancho, alto_objetivo / original_alto)
-    nuevo_tamano = (int(original_ancho * ratio), int(original_alto * ratio))
-    imagen_redimensionada = pygame.transform.smoothscale(imagen, nuevo_tamano)
+    nuevo_ancho = int(original_ancho * ratio)
+    nuevo_alto = int(original_alto * ratio)
+    imagen_redimensionada = pygame.transform.smoothscale(imagen, (nuevo_ancho, nuevo_alto))
+    
+    # Si la imagen redimensionada no cubre todo el objetivo, puedes centrarla o manejarlo.
+    # Para un fondo de juego, a menudo quieres que llene todo el espacio, incluso estirando.
+    # Si Fondo.png es el parking que me mostraste, es mejor que se estire para llenar 800x600.
+    if ruta == "Fondo.png": # Aplicar escala directa solo para el fondo del juego si se quiere que llene exactamente
+        imagen_redimensionada = pygame.transform.scale(imagen, (ancho_objetivo, alto_objetivo))
+    
     return imagen_redimensionada
 
 # Carga imágenes (todas en la misma carpeta)
@@ -52,6 +64,10 @@ jefe_imgs = {
 # Nueva imagen de mancha de sangre
 blood_stain_img = cargar_imagen_ruta("Sangre.png", 50, 50) # Tamaño ajustable
 
+# Carga la imagen de fondo del juego
+fondo_juego_img = cargar_imagen_ruta("Fondo.png", WIDTH, HEIGHT)
+
+
 show_menu = True
 run_game = False
 show_instructions = False
@@ -61,7 +77,7 @@ unlocked_levels = 1
 # Logotipo para menú
 logotipo_img = cargar_imagen_ruta("Logotipo.png", 300, 300)
 
-# Brasas para fondo menú e historia
+# Brasas para fondo menú e historia (se mantienen solo para estas pantallas)
 menu_brasas = [{'x': random.randint(0, WIDTH), 'y': random.randint(0, HEIGHT), 'speed': random.uniform(0.2, 0.6)} for _ in range(60)]
 
 def draw_button(text, x, y, w, h, base_color, hover_color, action=None, is_active=True):
@@ -121,7 +137,7 @@ def mostrar_pantalla_info(titulo, descripcion, volver_a_menu=False):
 
     while esperando:
         screen.fill(BLACK)
-        draw_brasas(menu_brasas)
+        draw_brasas(menu_brasas) # Las brasas se siguen dibujando en las pantallas de info/historia
 
         panel_rect = pygame.Surface((600, 300), pygame.SRCALPHA)
         panel_rect.fill((0, 0, 0, 180))  # Negro con transparencia
@@ -166,9 +182,9 @@ def mostrar_historia(nivel):
 def game_loop(starting_level):
     global run_game, show_menu, show_level_selection, unlocked_levels
 
-    # Partículas brasas fondo juego
-    particles = [{'x': random.randint(0, WIDTH), 'y': random.randint(0, HEIGHT), 'radius': random.randint(1, 3),
-                  'speed': random.uniform(0.2, 0.6)} for _ in range(120)]
+    # Las partículas para el fondo del juego han sido eliminadas por completo
+    # para que solo se vea la imagen de Fondo.png.
+    # Si quieres partículas para el juego, tendrías que re-inicializarlas aquí.
 
     player_pos = [WIDTH // 2, HEIGHT // 2]
     player_radius = 25
@@ -213,7 +229,7 @@ def game_loop(starting_level):
     jefe_disparo_delay = 0
     ultimo_disparo_jefe = 0
 
-    blood_stains = []
+    blood_stains = [] # La lista de manchas de sangre se mantiene
 
     mostrar_historia(nivel_actual)
 
@@ -221,23 +237,17 @@ def game_loop(starting_level):
 
     while running:
         dt = clock.tick(60)
-        screen.fill((15, 15, 15))  # Fondo oscuro
+        # Dibuja la imagen de fondo primero
+        screen.blit(fondo_juego_img, (0, 0))
 
-        # Dibujar partículas (brasas)
-        for p in particles:
-            pygame.draw.circle(screen, ORANGE, (int(p['x']), int(p['y'])), p['radius'])
-            p['y'] -= p['speed']
-            if p['y'] < 0:
-                p['x'] = random.randint(0, WIDTH)
-                p['y'] = HEIGHT + random.randint(0, 100)
-                p['speed'] = random.uniform(0.2, 0.6)
+        # El código para dibujar y actualizar las partículas del juego ha sido eliminado de aquí.
 
-        # Dibujar manchas de sangre debajo de todo lo demás
+        # Dibujar manchas de sangre encima del fondo
         for stain in blood_stains[:]:
             stain_surface = blood_stain_img.copy()
-            stain_surface.set_alpha(stain['alpha'])
+            stain_surface.set_alpha(stain['alpha']) # Esto permite que las manchas se desvanezcan
             screen.blit(stain_surface, (stain['x'] - stain_surface.get_width() // 2, stain['y'] - stain_surface.get_height() // 2))
-            stain['alpha'] -= 1
+            stain['alpha'] -= 1 # Reduce la opacidad para el desvanecimiento
             if stain['alpha'] <= 0:
                 blood_stains.remove(stain)
 
@@ -315,8 +325,8 @@ def game_loop(starting_level):
             
             for p in projectiles[:]:
                 if math.hypot(enemy['x'] - p['x'], enemy['y'] - p['y']) < 30:
-                    if enemy in enemies:
-                        blood_stains.append({'x': enemy['x'], 'y': enemy['y'], 'alpha': 255})
+                    if enemy in enemies: # Asegurarse de que el enemigo todavía existe
+                        blood_stains.append({'x': enemy['x'], 'y': enemy['y'], 'alpha': 255}) # Añade la mancha de sangre
                         enemies.remove(enemy)
                         projectiles.remove(p)
                         player_xp += 20
@@ -334,7 +344,7 @@ def game_loop(starting_level):
                                 jefe_vida = jefe_max_vida = 8
                                 jefe_speed = 2
                                 jefe_danio = 10
-                                jefe_disparo_delay = 1200
+                                jefe_disparo_delay = 1000
                                 enemies.clear()
                             elif nivel_actual == 2 and player_level >= 6 and not jefe_activo:
                                 jefe_activo = True
@@ -345,14 +355,14 @@ def game_loop(starting_level):
                                 jefe_danio = 15
                                 jefe_disparo_delay = 800
                                 enemies.clear()
-                            elif nivel_actual == 3 and player_level >= 7 and not jefe_activo:
+                            elif nivel_actual == 3 and player_level >= 10 and not jefe_activo:
                                 jefe_activo = True
                                 jefe_proyectiles.clear()
                                 jefe_pos = [random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100)]
-                                jefe_vida = jefe_max_vida = 20
-                                jefe_speed = 3.5 
+                                jefe_vida = jefe_max_vida = 25
+                                jefe_speed = 4
                                 jefe_danio = 20
-                                jefe_disparo_delay = 500 
+                                jefe_disparo_delay = 300
                                 enemies.clear()
                             
                             # Ability update logic
@@ -401,7 +411,7 @@ def game_loop(starting_level):
                     projectiles.remove(p)
 
             if jefe_vida <= 0:
-                blood_stains.append({'x': jefe_pos[0], 'y': jefe_pos[1], 'alpha': 255})
+                blood_stains.append({'x': jefe_pos[0], 'y': jefe_pos[1], 'alpha': 255}) # Añade mancha de sangre al morir el jefe
 
                 jefe_activo = False
                 jefe_proyectiles.clear()
@@ -414,7 +424,7 @@ def game_loop(starting_level):
                     mostrar_pantalla_info("¡HAS GANADO!", "El brote ha sido contenido.\nLa humanidad tiene una segunda oportunidad.", volver_a_menu=True)
                     running = False 
                 
-                ralentizar_enemigos = False
+                ralentizar_enemigos = False # Asegúrate de desactivar si un jefe muere
 
         if habilidad_actual == 2 and not ralentizar_enemigos and player_level >= 2:
             if keys[pygame.K_SPACE]:
@@ -445,7 +455,7 @@ def game_loop(starting_level):
             if jefe_img:
                 screen.blit(jefe_img, (int(jefe_pos[0] - jefe_img.get_width() // 2), int(jefe_pos[1] - jefe_img.get_height() // 2)))
             else:
-                pygame.draw.circle(screen, RED, (int(jefe_pos[0]), int(jefe_pos[1])), 30)
+                pygame.draw.circle(screen, RED, (int(jefe_pos[0]), int(jefe_pos[1])), 30) # Fallback si no hay imagen
             for j in jefe_proyectiles:
                 screen.blit(proyectil_jefe_img, (int(j['x'] - proyectil_jefe_img.get_width() // 2), int(j['y'] - proyectil_jefe_img.get_height() // 2)))
 
@@ -511,7 +521,7 @@ def level_selection_menu():
     level_menu_running = True
     while level_menu_running:
         screen.fill(BLACK)
-        draw_brasas(menu_brasas)
+        draw_brasas(menu_brasas) # Las brasas se mantienen en el menú de selección de nivel
 
         title_font = pygame.font.SysFont("Arial Black", 40)
         title_surf = title_font.render("Selecciona un Nivel", True, ORANGE)
@@ -572,7 +582,7 @@ while True:
 
     if show_menu:
         screen.fill(BLACK)
-        draw_brasas(menu_brasas)
+        draw_brasas(menu_brasas) # Las brasas se mantienen en el menú principal
 
         screen.blit(logotipo_img, (WIDTH // 2 - logotipo_img.get_width() // 2, 40))
 
@@ -604,4 +614,5 @@ while True:
         level_selection_menu()
 
     elif run_game:
+        # El fondo del juego y las manchas de sangre se dibujan dentro de game_loop()
         pass
