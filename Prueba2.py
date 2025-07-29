@@ -55,22 +55,26 @@ GREEN = (0, 200, 0)
 DARK_RED = (150, 0, 0)
 DARK_GREEN = (0, 150, 0)
 DARK_BLUE = (0, 0, 150)
-GRAY = (100, 100, 100) 
+GRAY = (100, 100, 100)
 
 button_font = pygame.font.SysFont("Arial", 25)
 info_font = pygame.font.SysFont("Arial", 20)
 
 def cargar_imagen_ruta(ruta, ancho_objetivo, alto_objetivo):
-    imagen = pygame.image.load(ruta).convert_alpha()
-    original_ancho, original_alto = imagen.get_size()
-    if ruta == "Fondo.png":
-        imagen_redimensionada = pygame.transform.scale(imagen, (ancho_objetivo, alto_objetivo))
-    else:
-        ratio = min(ancho_objetivo / original_ancho, alto_objetivo / original_alto)
-        nuevo_ancho = int(original_ancho * ratio)
-        nuevo_alto = int(original_alto * ratio)
-        imagen_redimensionada = pygame.transform.smoothscale(imagen, (nuevo_ancho, nuevo_alto))
-    return imagen_redimensionada
+    try:
+        imagen = pygame.image.load(ruta).convert_alpha()
+        original_ancho, original_alto = imagen.get_size()
+        if ruta == "Fondo.png":
+            imagen_redimensionada = pygame.transform.scale(imagen, (ancho_objetivo, alto_objetivo))
+        else:
+            ratio = min(ancho_objetivo / original_ancho, alto_objetivo / original_alto)
+            nuevo_ancho = int(original_ancho * ratio)
+            nuevo_alto = int(original_alto * ratio)
+            imagen_redimensionada = pygame.transform.smoothscale(imagen, (nuevo_ancho, nuevo_alto))
+        return imagen_redimensionada
+    except pygame.error as e:
+        print(f"Error al cargar la imagen: {ruta}")
+        raise SystemExit(e)
 
 # Carga de animaciones del personaje desde la hoja de sprites
 character_sheet = SpriteSheet('Jefe_Maestro_3.jpg')
@@ -100,28 +104,17 @@ blood_stain_img = cargar_imagen_ruta("Sangre.png", 50, 50)
 fondo_juego_img = cargar_imagen_ruta("Fondo.png", WIDTH, HEIGHT)
 logotipo_img = cargar_imagen_ruta("Logotipo.png", 300, 300)
 
-# --- INICIO DE CAMBIOS: IMÁGENES PARA ITEMS ---
-# Se crean superficies simples como placeholders para los items.
-# Puedes reemplazarlas con imágenes cargadas con cargar_imagen_ruta().
-medikit_img = pygame.Surface((25, 25))
-medikit_img.fill(GREEN)
-pygame.draw.rect(medikit_img, WHITE, (10, 5, 5, 15)) # Cruz blanca
-pygame.draw.rect(medikit_img, WHITE, (5, 10, 15, 5)) # Cruz blanca
+# --- IMÁGENES PARA ITEMS (DROPS) ---
+medikit_img = cargar_imagen_ruta("medikit.png", 50, 50)
+shield_img = cargar_imagen_ruta("chaleco.png", 50, 50)
 
-shield_img = pygame.Surface((25, 25))
-shield_img.fill(CYAN)
-pygame.draw.rect(shield_img, DARK_BLUE, shield_img.get_rect(), 3) # Borde oscuro
-# --- FIN DE CAMBIOS ---
-
-
+# Variables de estado del juego
 show_menu = True
 run_game = False
 show_instructions = False
 show_level_selection = False
-# --- INICIO DE CAMBIOS: VARIABLE PARA SELECCIÓN DE MODO ---
 show_mode_selection = False
-# --- FIN DE CAMBIOS ---
-unlocked_levels = 1 
+unlocked_levels = 1
 
 menu_brasas = [{'x': random.randint(0, WIDTH), 'y': random.randint(0, HEIGHT), 'speed': random.uniform(0.2, 0.6)} for _ in range(60)]
 
@@ -159,14 +152,12 @@ def draw_health_bar(x, y, width, height, current_health, max_health, border_colo
     fill_rect = pygame.Rect(x, y, fill_width, height)
     pygame.draw.rect(screen, fill_color, fill_rect)
     pygame.draw.rect(screen, border_color, back_rect, 2)
-    
+
     if label and label_pos == "below":
         label_surf = info_font.render(label, True, WHITE)
         screen.blit(label_surf, (x, y + height + 5))
 
-# --- INICIO DE CAMBIOS: FUNCIÓN PARA BARRA DE ESCUDO ---
 def draw_shield_bar(x, y, width, height, current_shield, max_shield, border_color, fill_color, back_color):
-    # Dibuja la barra de escudo sin etiqueta, es visualmente distinta
     back_rect = pygame.Rect(x, y, width, height)
     pygame.draw.rect(screen, back_color, back_rect)
     fill_width = 0
@@ -175,7 +166,6 @@ def draw_shield_bar(x, y, width, height, current_shield, max_shield, border_colo
     fill_rect = pygame.Rect(x, y, fill_width, height)
     pygame.draw.rect(screen, fill_color, fill_rect)
     pygame.draw.rect(screen, border_color, back_rect, 2)
-# --- FIN DE CAMBIOS ---
 
 def draw_brasas(brazas):
     for b in brazas:
@@ -225,7 +215,6 @@ def mostrar_historia(nivel):
         titulo, descripcion = historias[nivel]
         mostrar_pantalla_info(titulo, descripcion)
 
-# --- INICIO DE CAMBIOS: MODO INFINITO ---
 def infinite_mode_loop():
     global run_game, show_menu, show_mode_selection
 
@@ -234,38 +223,37 @@ def infinite_mode_loop():
     player_speed = 4
     player_health = 100
     player_max_health = 100
-    player_shield = 50  # El jugador empieza con algo de escudo
+    player_shield = 50
     player_max_shield = 100
     score = 0
-    
+
     projectiles = []
     projectile_speed = 7
-    shoot_delay = 400 # Disparo un poco más rápido para el modo infinito
+    shoot_delay = 400
     last_shot_time = pygame.time.get_ticks()
-    
+
     enemies = []
     enemy_base_speed = 1.5
-    enemy_spawn_delay = 2000 # Empieza más lento
+    enemy_spawn_delay = 2000
     last_enemy_spawn = pygame.time.get_ticks()
 
-    pickups = [] # Lista para medikits y escudos
-    MEDIKIT_CHANCE = 0.08 # 8% de probabilidad
-    SHIELD_CHANCE = 0.10 # 10% de probabilidad
+    pickups = []
+    MEDIKIT_CHANCE = 0.08
+    SHIELD_CHANCE = 0.10
 
     blood_stains = []
     player_action = 'idle'
     player_direction = 'down'
     frame_index = 0
     animation_speed = 0.2
-    
+
     start_time = pygame.time.get_ticks()
     running = True
 
     while running:
-        dt = clock.tick(60)
+        clock.tick(60)
         screen.blit(fondo_juego_img, (0, 0))
 
-        # Lógica de manchas de sangre (sin cambios)
         for stain in blood_stains[:]:
             stain_surface = blood_stain_img.copy()
             stain_surface.set_alpha(stain['alpha'])
@@ -282,8 +270,7 @@ def infinite_mode_loop():
                 if event.key == pygame.K_ESCAPE:
                     running = False
                     break
-        
-        # Lógica de movimiento y animación del jugador (sin cambios)
+
         keys = pygame.key.get_pressed()
         is_moving = any([keys[pygame.K_w], keys[pygame.K_s], keys[pygame.K_a], keys[pygame.K_d]])
         player_action = 'walk' if is_moving else 'idle'
@@ -312,18 +299,13 @@ def infinite_mode_loop():
         if frame_index >= len(current_animation_list):
             frame_index = 0
         current_player_img = current_animation_list[int(frame_index)]
-        
+
         now = pygame.time.get_ticks()
 
-        # Dificultad progresiva
         elapsed_seconds = (now - start_time) / 1000
-        # La velocidad de aparición aumenta cada 15 segundos
         current_spawn_delay = max(300, enemy_spawn_delay - (elapsed_seconds // 15) * 100)
-        # La velocidad de los enemigos aumenta cada 25 segundos
         current_enemy_speed = min(4.0, enemy_base_speed + (elapsed_seconds // 25) * 0.2)
 
-
-        # Lógica de disparo del jugador
         if now - last_shot_time >= shoot_delay:
             mouse_x, mouse_y = pygame.mouse.get_pos()
             dx, dy = mouse_x - player_pos[0], mouse_y - player_pos[1]
@@ -339,8 +321,7 @@ def infinite_mode_loop():
             p['y'] += p['dy'] * projectile_speed
             if not (0 <= p['x'] <= WIDTH and 0 <= p['y'] <= HEIGHT):
                 projectiles.remove(p)
-        
-        # Aparición de enemigos
+
         if now - last_enemy_spawn >= current_spawn_delay:
             side = random.choice(['top', 'bottom', 'left', 'right'])
             if side == 'top': x, y = random.randint(0, WIDTH), -40
@@ -351,7 +332,6 @@ def infinite_mode_loop():
             enemies.append({'x': x, 'y': y, 'speed': current_enemy_speed, 'img': enemy_img})
             last_enemy_spawn = now
 
-        # Lógica de enemigos y colisiones
         for enemy in enemies[:]:
             dx, dy = player_pos[0] - enemy['x'], player_pos[1] - enemy['y']
             dist = math.hypot(dx, dy)
@@ -361,19 +341,15 @@ def infinite_mode_loop():
             enemy['x'] += dx * enemy['speed']
             enemy['y'] += dy * enemy['speed']
 
-            # Colisión enemigo-jugador
             if math.hypot(enemy['x'] - player_pos[0], enemy['y'] - player_pos[1]) < 40:
-                damage = 10 # Daño fijo por toque
+                damage = 10
                 if player_shield > 0:
                     player_shield = max(0, player_shield - damage)
                 else:
                     player_health = max(0, player_health - damage)
-                # Pequeño retroceso al enemigo para evitar daño constante
-                enemy['x'] -= dx * 20 
+                enemy['x'] -= dx * 20
                 enemy['y'] -= dy * 20
 
-
-            # Colisión proyectil-enemigo
             for p in projectiles[:]:
                 if math.hypot(enemy['x'] - p['x'], enemy['y'] - p['y']) < 30:
                     if enemy in enemies:
@@ -381,56 +357,49 @@ def infinite_mode_loop():
                         enemies.remove(enemy)
                         projectiles.remove(p)
                         score += 10
-                        
-                        # Probabilidad de soltar item
+
                         if random.random() < MEDIKIT_CHANCE:
                             pickups.append({'x': enemy['x'], 'y': enemy['y'], 'type': 'medikit', 'img': medikit_img})
                         elif random.random() < SHIELD_CHANCE:
                             pickups.append({'x': enemy['x'], 'y': enemy['y'], 'type': 'shield', 'img': shield_img})
-                        break # El proyectil solo puede golpear a un enemigo
+                        break
 
-        # Lógica de recolección de items
         for item in pickups[:]:
             if math.hypot(item['x'] - player_pos[0], item['y'] - player_pos[1]) < 35:
                 if item['type'] == 'medikit':
                     player_health = min(player_max_health, player_health + 25)
                 elif item['type'] == 'shield':
-                    player_shield = min(player_max_shield, player_shield + 20)
+                    player_shield = min(player_max_shield, player_shield + 40)
                 pickups.remove(item)
 
-        # --- DIBUJADO ---
-        # Dibujar items
         for item in pickups:
             screen.blit(item['img'], (item['x'] - item['img'].get_width() // 2, item['y'] - item['img'].get_height() // 2))
 
-        # Dibujar jugador
         player_rect = current_player_img.get_rect(center=tuple(player_pos))
         screen.blit(current_player_img, player_rect)
-        
-        # Dibujar enemigos
+
         for enemy in enemies:
             screen.blit(enemy['img'], (enemy['x'] - enemy['img'].get_width() // 2, enemy['y'] - enemy['img'].get_height() // 2))
 
-        # Dibujar proyectiles
         for p in projectiles:
             screen.blit(proyectil_img, (p['x'] - proyectil_img.get_width() // 2, p['y'] - proyectil_img.get_height() // 2))
 
-        # HUD
+        # HUD para Modo Infinito
         screen.blit(info_font.render(f"Puntuación: {score}", True, WHITE), (10, 10))
-        draw_health_bar(10, HEIGHT - 70, 200, 25, player_health, player_max_health, WHITE, GREEN, DARK_RED, "Salud", "above")
+        draw_health_bar(10, HEIGHT - 70, 200, 25, player_health, player_max_health, WHITE, GREEN, DARK_RED)
+        screen.blit(medikit_img, (10 + 200 + 5, HEIGHT - 70))
         draw_shield_bar(10, HEIGHT - 35, 200, 25, player_shield, player_max_shield, WHITE, CYAN, DARK_BLUE)
-
+        screen.blit(shield_img, (10 + 200 + 5, HEIGHT - 35))
 
         if player_health <= 0:
             mostrar_pantalla_info("¡Has muerto!", f"Sobreviviste hasta alcanzar una puntuación de: {score}\n¡Inténtalo de nuevo!", volver_a_menu=True)
             running = False
-            
+
         pygame.display.flip()
 
     run_game = False
-    show_menu = True # Vuelve al menú principal
+    show_menu = True
     show_mode_selection = False
-# --- FIN DE CAMBIOS: MODO INFINITO ---
 
 def game_loop(starting_level):
     global run_game, show_menu, show_level_selection, unlocked_levels
@@ -442,7 +411,7 @@ def game_loop(starting_level):
     player_health = 100
     player_max_health = 100
     player_xp = 0
-    player_level = 1 
+    player_level = 1
     xp_to_next = 50
     nivel_actual = starting_level
     max_nivel = 3
@@ -455,9 +424,9 @@ def game_loop(starting_level):
     shoot_delay = 500
     last_shot_time = pygame.time.get_ticks()
     enemies = []
-    enemy_base_speed = 1.5 + (starting_level - 1) * 0.5 
-    enemy_spawn_delay = 1500 - (starting_level - 1) * 200 
-    enemy_spawn_delay = max(400, enemy_spawn_delay) 
+    enemy_base_speed = 1.5 + (starting_level - 1) * 0.5
+    enemy_spawn_delay = 1500 - (starting_level - 1) * 200
+    enemy_spawn_delay = max(400, enemy_spawn_delay)
     enemy_speed = enemy_base_speed
     last_enemy_spawn = pygame.time.get_ticks()
     jefe_activo = False
@@ -474,12 +443,12 @@ def game_loop(starting_level):
     player_direction = 'down'
     frame_index = 0
     animation_speed = 0.2
-    
+
     mostrar_historia(nivel_actual)
     running = True
 
     while running:
-        dt = clock.tick(60)
+        clock.tick(60)
         screen.blit(fondo_juego_img, (0, 0))
 
         for stain in blood_stains[:]:
@@ -498,7 +467,7 @@ def game_loop(starting_level):
                 if event.key == pygame.K_ESCAPE:
                     running = False
                     break
-        
+
         keys = pygame.key.get_pressed()
         is_moving = any([keys[pygame.K_w], keys[pygame.K_s], keys[pygame.K_a], keys[pygame.K_d]])
         player_action = 'walk' if is_moving else 'idle'
@@ -522,15 +491,13 @@ def game_loop(starting_level):
         animation_key = f"{player_action}_{player_direction}"
         if animation_key not in animations:
             animation_key = 'idle_down'
-            
+
         frame_index += animation_speed
-        
         current_animation_list = animations[animation_key]
         if frame_index >= len(current_animation_list):
             frame_index = 0
-
         current_player_img = current_animation_list[int(frame_index)]
-        
+
         now = pygame.time.get_ticks()
 
         if now - last_shot_time >= shoot_delay:
@@ -584,7 +551,7 @@ def game_loop(starting_level):
 
             if math.hypot(enemy['x'] - player_pos[0], enemy['y'] - player_pos[1]) < 40:
                 player_health -= 1
-            
+
             for p in projectiles[:]:
                 if math.hypot(enemy['x'] - p['x'], enemy['y'] - p['y']) < 30:
                     if enemy in enemies:
@@ -596,7 +563,7 @@ def game_loop(starting_level):
                             player_level += 1
                             player_xp = 0
                             xp_to_next += 25
-                            
+
                             if nivel_actual == 1 and player_level >= 5 and not jefe_activo:
                                 jefe_activo, jefe_pos, jefe_vida, jefe_max_vida, jefe_speed, jefe_danio, jefe_disparo_delay = True, [random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100)], 8, 8, 2, 10, 1000
                                 jefe_proyectiles.clear(); enemies.clear()
@@ -606,7 +573,7 @@ def game_loop(starting_level):
                             elif nivel_actual == 3 and player_level >= 10 and not jefe_activo:
                                 jefe_activo, jefe_pos, jefe_vida, jefe_max_vida, jefe_speed, jefe_danio, jefe_disparo_delay = True, [random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100)], 25, 25, 4, 20, 300
                                 jefe_proyectiles.clear(); enemies.clear()
-                            
+
                             if player_level == 2: habilidad_actual = 2
                             elif player_level == 3: habilidad_actual = 3
 
@@ -651,7 +618,7 @@ def game_loop(starting_level):
                     running = False
                 else:
                     mostrar_pantalla_info("¡HAS GANADO!", "El brote ha sido contenido.\nLa humanidad tiene una segunda oportunidad.", volver_a_menu=True)
-                    running = False 
+                    running = False
                 ralentizar_enemigos = False
 
         if habilidad_actual == 2 and not ralentizar_enemigos and player_level >= 2:
@@ -662,7 +629,7 @@ def game_loop(starting_level):
 
         if habilidad_actual == 3: player_speed = base_speed * 1.8
         elif habilidad_actual == 1 or habilidad_actual == 2: player_speed = base_speed
-        
+
         player_rect = current_player_img.get_rect(center=tuple(player_pos))
         screen.blit(current_player_img, player_rect)
         for enemy in enemies:
@@ -677,6 +644,7 @@ def game_loop(starting_level):
             for j in jefe_proyectiles:
                 screen.blit(proyectil_jefe_img, (int(j['x'] - proyectil_jefe_img.get_width() // 2), int(j['y'] - proyectil_jefe_img.get_height() // 2)))
 
+        # HUD para Modo Campaña
         screen.blit(info_font.render(f"Nivel: {player_level}", True, WHITE), (10, 10))
         screen.blit(info_font.render(f"XP: {player_xp}/{xp_to_next}", True, WHITE), (10, 35))
         screen.blit(info_font.render(f"Fase: {nivel_actual}", True, WHITE), (10, 60))
@@ -696,7 +664,7 @@ def game_loop(starting_level):
         if player_health <= 0:
             mostrar_pantalla_info("¡Has muerto!", "La infección ha consumido el mundo.\nNo hay esperanza...", volver_a_menu=True)
             running = False
-            
+
         pygame.display.flip()
 
     run_game = False
@@ -709,14 +677,12 @@ def start_level(level):
     show_mode_selection = False
     run_game = True
     game_loop(level)
-    
-# --- INICIO DE CAMBIOS: LANZADOR MODO INFINITO ---
+
 def start_infinite_mode():
     global run_game, show_mode_selection
     show_mode_selection = False
     run_game = True
     infinite_mode_loop()
-# --- FIN DE CAMBIOS ---
 
 def show_level_selection_screen():
     global show_menu, show_level_selection, show_mode_selection
@@ -724,7 +690,6 @@ def show_level_selection_screen():
     show_mode_selection = False
     show_level_selection = True
 
-# --- INICIO DE CAMBIOS: PANTALLA DE SELECCIÓN DE MODO ---
 def show_mode_selection_screen():
     global show_menu, show_mode_selection
     show_menu = False
@@ -732,7 +697,7 @@ def show_mode_selection_screen():
 
 def mode_selection_menu():
     global show_menu, show_mode_selection
-    
+
     mode_menu_running = True
     while mode_menu_running:
         screen.fill(BLACK)
@@ -741,29 +706,28 @@ def mode_selection_menu():
         title_font = pygame.font.SysFont("Arial Black", 40)
         title_surf = title_font.render("Selecciona un Modo de Juego", True, ORANGE)
         screen.blit(title_surf, (WIDTH // 2 - title_surf.get_width() // 2, 150))
-        
+
         draw_button("Modo Campaña", WIDTH // 2 - 125, 250, 250, 50, ORANGE, LIGHT_ORANGE, show_level_selection_screen)
         draw_button("Modo Infinito", WIDTH // 2 - 125, 320, 250, 50, CYAN, (0, 200, 200), start_infinite_mode)
 
         def return_to_main_menu():
             nonlocal mode_menu_running
             mode_menu_running = False
+            global show_mode_selection, show_menu
             show_mode_selection = False
             show_menu = True
-        
+
         draw_button("Volver", WIDTH // 2 - 125, 420, 250, 50, GRAY, (150, 150, 150), return_to_main_menu)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-        
-        # Si se selecciona una opción, el bucle principal se encargará de cambiar de pantalla
+
         if not show_mode_selection:
             mode_menu_running = False
 
         pygame.display.flip()
-# --- FIN DE CAMBIOS ---
 
 def exit_game():
     pygame.quit()
@@ -776,7 +740,7 @@ def show_instructions_screen():
 
 def level_selection_menu():
     global show_menu, show_level_selection, unlocked_levels
-    
+
     level_menu_running = True
     while level_menu_running:
         screen.fill(BLACK)
@@ -798,9 +762,10 @@ def level_selection_menu():
 
         def return_to_mode_selection():
             nonlocal level_menu_running
+            global show_level_selection, show_mode_selection
             level_menu_running = False
             show_level_selection = False
-            show_mode_selection = True # Regresa a la selección de modo
+            show_mode_selection = True
 
         draw_button("Volver", WIDTH // 2 - 100, button_y_start + 3 * button_spacing, 200, button_height, CYAN, (0, 200, 200), return_to_mode_selection)
 
@@ -808,7 +773,7 @@ def level_selection_menu():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-        
+
         if not show_level_selection:
             level_menu_running = False
 
@@ -822,9 +787,7 @@ while True:
         screen.fill(BLACK)
         draw_brasas(menu_brasas)
         screen.blit(logotipo_img, (WIDTH // 2 - logotipo_img.get_width() // 2, 40))
-        # --- INICIO DE CAMBIOS: ACCIÓN DEL BOTÓN INICIAR ---
         draw_button("Iniciar", WIDTH // 2 - 100, 360, 200, 50, ORANGE, LIGHT_ORANGE, show_mode_selection_screen)
-        # --- FIN DE CAMBIOS ---
         draw_button("Instrucciones", WIDTH // 2 - 100, 430, 200, 50, ORANGE, LIGHT_ORANGE, show_instructions_screen)
         draw_button("Salir", WIDTH // 2 - 100, 500, 200, 50, ORANGE, LIGHT_ORANGE, exit_game)
         for event in pygame.event.get():
@@ -838,7 +801,7 @@ while True:
             "INSTRUCCIONES",
             "Muévete con W A S D\n"
             "Apunta con el ratón y dispara automáticamente\n"
-            "Presiona ESPACIO para usar la habilidad del nivel 2 (Modo Campaña)\n"
+            "Presiona ESPACIO para usar la habilidad (Modo Campaña)\n"
             "Presiona ESCAPE para salir de la partida\n"
             "¡Sobrevive y derrota a los jefes!",
             volver_a_menu=True
@@ -846,7 +809,6 @@ while True:
         show_instructions = False
         show_menu = True
 
-    # --- INICIO DE CAMBIOS: GESTIÓN DE PANTALLAS DE MENÚ ---
     elif show_mode_selection:
         mode_selection_menu()
 
@@ -854,8 +816,6 @@ while True:
         level_selection_menu()
 
     elif run_game:
-        # El juego ya se está ejecutando a través de start_level() o start_infinite_mode()
-        # Esta rama se mantiene por si acaso, pero la lógica principal del bucle
-        # de juego ahora reside en sus propias funciones.
+        # Los bucles de juego se manejan dentro de sus propias funciones.
+        # Esta rama se deja vacía intencionadamente.
         pass
-    # --- FIN DE CAMBIOS ---
