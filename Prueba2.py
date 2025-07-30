@@ -35,7 +35,7 @@ class SpriteSheet:
 
 
 pygame.mixer.init()
-pygame.mixer.music.load("Sonido.mp3")
+pygame.mixer.music.load("Sonidos/Sonido.mp3")
 pygame.mixer.music.play(-1)
 
 WIDTH, HEIGHT = 800, 600
@@ -64,7 +64,7 @@ def cargar_imagen_ruta(ruta, ancho_objetivo, alto_objetivo):
     try:
         imagen = pygame.image.load(ruta).convert_alpha()
         original_ancho, original_alto = imagen.get_size()
-        if ruta == "Fondo.png":
+        if "Fondo.png" in ruta:
             imagen_redimensionada = pygame.transform.scale(imagen, (ancho_objetivo, alto_objetivo))
         else:
             ratio = min(ancho_objetivo / original_ancho, alto_objetivo / original_alto)
@@ -77,7 +77,7 @@ def cargar_imagen_ruta(ruta, ancho_objetivo, alto_objetivo):
         raise SystemExit(e)
 
 # Carga de animaciones del personaje desde la hoja de sprites
-character_sheet = SpriteSheet('Jefe_Maestro_3.jpg')
+character_sheet = SpriteSheet('Imagenes/Jefe_Maestro_3.jpg')
 animations = {
     'walk_up': [character_sheet.get_image(0, i, SPRITE_WIDTH, SPRITE_HEIGHT, player_sprite_scale) for i in range(4)],
     'walk_left': [character_sheet.get_image(1, i, SPRITE_WIDTH, SPRITE_HEIGHT, player_sprite_scale) for i in range(4)],
@@ -90,23 +90,22 @@ animations['idle_left'] = [animations['walk_left'][0]]
 animations['idle_right'] = [animations['walk_right'][0]]
 
 # Carga imágenes (todas en la misma carpeta)
-zombie_imgs = [cargar_imagen_ruta(f"Zombie{i}.png", 80, 80) for i in range(1, 16)]
-proyectil_img = cargar_imagen_ruta("Proyectil.png", 20, 20)
-proyectil_jefe_img = cargar_imagen_ruta("ProyectilZombie.png", 30, 30)
+zombie_imgs = [cargar_imagen_ruta(f"Imagenes/Zombie{i}.png", 80, 80) for i in range(1, 16)]
+proyectil_img = cargar_imagen_ruta("Imagenes/Proyectil.png", 20, 20)
+proyectil_jefe_img = cargar_imagen_ruta("Imagenes/ProyectilZombie.png", 30, 30)
 
 jefe_imgs = {
-    1: cargar_imagen_ruta("JefeFinal1.png", 100, 100),
-    2: cargar_imagen_ruta("JefeFinal2.png", 130, 130),
-    3: cargar_imagen_ruta("JefeFinal3.png", 150, 150)
+    1: cargar_imagen_ruta("Imagenes/JefeFinal1.png", 100, 100),
+    2: cargar_imagen_ruta("Imagenes/JefeFinal2.png", 130, 130),
+    3: cargar_imagen_ruta("Imagenes/JefeFinal3.png", 150, 150)
 }
 
-blood_stain_img = cargar_imagen_ruta("Sangre.png", 50, 50)
-fondo_juego_img = cargar_imagen_ruta("Fondo.png", WIDTH, HEIGHT)
-logotipo_img = cargar_imagen_ruta("Logotipo.png", 300, 300)
+blood_stain_img = cargar_imagen_ruta("Imagenes/Sangre.png", 50, 50)
+fondo_juego_img = cargar_imagen_ruta("Imagenes/Fondo.png", WIDTH, HEIGHT)
+logotipo_img = cargar_imagen_ruta("Imagenes/Logotipo.png", 300, 300)
 
-# --- IMÁGENES PARA ITEMS (DROPS) ---
-medikit_img = cargar_imagen_ruta("medikit.png", 60, 60) # Tamaño ajustado para mejor visibilidad
-shield_img = cargar_imagen_ruta("chaleco.png", 60, 60)
+medikit_img = cargar_imagen_ruta("Imagenes/medikit.png", 60, 60) 
+shield_img = cargar_imagen_ruta("Imagenes/chaleco.png", 60, 60)
 
 # Variables de estado del juego
 show_menu = True
@@ -233,9 +232,9 @@ def infinite_mode_loop():
     last_shot_time = pygame.time.get_ticks()
 
     enemies = []
-    # MODIFICACIÓN: Parámetros de spawn para modo infinito
+    # MODIFICACIÓN: Parámetros de spawn para modo infinito (más agresivo)
     enemy_base_speed = 1.5
-    enemy_spawn_delay = 2000 # Delay inicial
+    enemy_spawn_delay = 900 # Delay inicial reducido
     last_enemy_spawn = pygame.time.get_ticks()
 
     pickups = []
@@ -250,7 +249,6 @@ def infinite_mode_loop():
     frame_index = 0
     animation_speed = 0.2
 
-    # MODIFICACIÓN: Inicio del cronómetro
     start_time = pygame.time.get_ticks()
     running = True
 
@@ -305,12 +303,11 @@ def infinite_mode_loop():
             frame_index = 0
         current_player_img = current_animation_list[int(frame_index)]
 
-        # MODIFICACIÓN: Lógica de dificultad progresiva para modo infinito
+        # MODIFICACIÓN: Lógica de dificultad progresiva (más agresiva)
         elapsed_seconds = (now - start_time) / 1000
-        # El delay de spawn se reduce cada 15 segundos
-        current_spawn_delay = max(10, enemy_spawn_delay - (elapsed_seconds // 15) * 100)
-        # La velocidad de los enemigos aumenta cada 25 segundos
-        current_enemy_speed = min(4.0, enemy_base_speed + (elapsed_seconds // 25) * 0.2)
+        # El delay de spawn se reduce más rápido y tiene un mínimo más bajo
+        current_spawn_delay = max(100, enemy_spawn_delay - (elapsed_seconds // 10) * 75)
+        current_enemy_speed = min(4.5, enemy_base_speed + (elapsed_seconds // 20) * 0.2)
 
         if now - last_shot_time >= shoot_delay:
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -328,15 +325,19 @@ def infinite_mode_loop():
             if not (0 <= p['x'] <= WIDTH and 0 <= p['y'] <= HEIGHT):
                 projectiles.remove(p)
 
+        # MODIFICACIÓN: Spawn de zombies en oleadas
         if now - last_enemy_spawn >= current_spawn_delay:
-            side = random.choice(['top', 'bottom', 'left', 'right'])
-            if side == 'top': x, y = random.randint(0, WIDTH), -40
-            elif side == 'bottom': x, y = random.randint(0, WIDTH), HEIGHT + 40
-            elif side == 'left': x, y = -40, random.randint(0, HEIGHT)
-            else: x, y = WIDTH + 40, random.randint(0, HEIGHT)
-            enemy_img = random.choice(zombie_imgs)
-            enemies.append({'x': x, 'y': y, 'speed': current_enemy_speed, 'img': enemy_img})
+            # Genera una oleada de zombies en lugar de uno solo
+            for _ in range(random.randint(2, 4)): # Genera de 2 a 4 zombies por oleada
+                side = random.choice(['top', 'bottom', 'left', 'right'])
+                if side == 'top': x, y = random.randint(0, WIDTH), -40
+                elif side == 'bottom': x, y = random.randint(0, WIDTH), HEIGHT + 40
+                elif side == 'left': x, y = -40, random.randint(0, HEIGHT)
+                else: x, y = WIDTH + 40, random.randint(0, HEIGHT)
+                enemy_img = random.choice(zombie_imgs)
+                enemies.append({'x': x, 'y': y, 'speed': current_enemy_speed, 'img': enemy_img})
             last_enemy_spawn = now
+
 
         for enemy in enemies[:]:
             dx, dy = player_pos[0] - enemy['x'], player_pos[1] - enemy['y']
@@ -414,10 +415,8 @@ def infinite_mode_loop():
         for p in projectiles:
             screen.blit(proyectil_img, (p['x'] - proyectil_img.get_width() // 2, p['y'] - proyectil_img.get_height() // 2))
 
-        # MODIFICACIÓN: HUD para modo infinito con cronómetro
         screen.blit(info_font.render(f"Puntuación: {score}", True, WHITE), (10, 10))
         
-        # Calcular y mostrar el cronómetro
         survival_time_ms = now - start_time
         survival_seconds = survival_time_ms // 1000
         minutes = survival_seconds // 60
@@ -438,7 +437,6 @@ def infinite_mode_loop():
         screen.blit(shield_img, (10 + 200 + 5, icon_y_shield))
 
         if player_health <= 0:
-            # MODIFICACIÓN: Mensaje de muerte con tiempo y puntuación
             death_message = (f"Puntuación final: {score}\n"
                              f"Has sobrevivido por {minutes:02d}:{seconds:02d} minutos.")
             mostrar_pantalla_info("¡Has muerto!", death_message, volver_a_menu=True)
@@ -474,7 +472,6 @@ def game_loop(starting_level):
     last_shot_time = pygame.time.get_ticks()
     enemies = []
     
-    # MODIFICACIÓN: Parámetros de spawn específicos para cada nivel
     level_configs = {
         1: {'speed': 1.5, 'delay': 1500},
         2: {'speed': 2.0, 'delay': 1200},
@@ -871,4 +868,6 @@ while True:
         level_selection_menu()
 
     elif run_game:
+        # Los bucles de juego se manejan dentro de sus propias funciones.
+        # Esta rama se deja vacía intencionadamente.
         pass
