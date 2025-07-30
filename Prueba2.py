@@ -105,8 +105,8 @@ fondo_juego_img = cargar_imagen_ruta("Fondo.png", WIDTH, HEIGHT)
 logotipo_img = cargar_imagen_ruta("Logotipo.png", 300, 300)
 
 # --- IMÁGENES PARA ITEMS (DROPS) ---
-medikit_img = cargar_imagen_ruta("medikit.png", 50, 50)
-shield_img = cargar_imagen_ruta("chaleco.png", 50, 50)
+medikit_img = cargar_imagen_ruta("medikit.png", 60, 60) # Tamaño ajustado para mejor visibilidad
+shield_img = cargar_imagen_ruta("chaleco.png", 60, 60)
 
 # Variables de estado del juego
 show_menu = True
@@ -233,13 +233,16 @@ def infinite_mode_loop():
     last_shot_time = pygame.time.get_ticks()
 
     enemies = []
+    # MODIFICACIÓN: Parámetros de spawn para modo infinito
     enemy_base_speed = 1.5
-    enemy_spawn_delay = 2000
+    enemy_spawn_delay = 2000 # Delay inicial
     last_enemy_spawn = pygame.time.get_ticks()
 
     pickups = []
     MEDIKIT_CHANCE = 0.08
     SHIELD_CHANCE = 0.10
+    ITEM_LIFESPAN = 10000  # 10 segundos de vida
+    ITEM_BLINK_TIME = 7000  # Empieza a parpadear a los 7 segundos
 
     blood_stains = []
     player_action = 'idle'
@@ -247,11 +250,13 @@ def infinite_mode_loop():
     frame_index = 0
     animation_speed = 0.2
 
+    # MODIFICACIÓN: Inicio del cronómetro
     start_time = pygame.time.get_ticks()
     running = True
 
     while running:
         clock.tick(60)
+        now = pygame.time.get_ticks()
         screen.blit(fondo_juego_img, (0, 0))
 
         for stain in blood_stains[:]:
@@ -300,10 +305,11 @@ def infinite_mode_loop():
             frame_index = 0
         current_player_img = current_animation_list[int(frame_index)]
 
-        now = pygame.time.get_ticks()
-
+        # MODIFICACIÓN: Lógica de dificultad progresiva para modo infinito
         elapsed_seconds = (now - start_time) / 1000
-        current_spawn_delay = max(300, enemy_spawn_delay - (elapsed_seconds // 15) * 100)
+        # El delay de spawn se reduce cada 15 segundos
+        current_spawn_delay = max(10, enemy_spawn_delay - (elapsed_seconds // 15) * 100)
+        # La velocidad de los enemigos aumenta cada 25 segundos
         current_enemy_speed = min(4.0, enemy_base_speed + (elapsed_seconds // 25) * 0.2)
 
         if now - last_shot_time >= shoot_delay:
@@ -359,21 +365,45 @@ def infinite_mode_loop():
                         score += 10
 
                         if random.random() < MEDIKIT_CHANCE:
-                            pickups.append({'x': enemy['x'], 'y': enemy['y'], 'type': 'medikit', 'img': medikit_img})
+                            pickups.append({'x': enemy['x'], 'y': enemy['y'], 'type': 'medikit', 'img': medikit_img, 'creation_time': now})
                         elif random.random() < SHIELD_CHANCE:
-                            pickups.append({'x': enemy['x'], 'y': enemy['y'], 'type': 'shield', 'img': shield_img})
+                            pickups.append({'x': enemy['x'], 'y': enemy['y'], 'type': 'shield', 'img': shield_img, 'creation_time': now})
                         break
 
         for item in pickups[:]:
+            elapsed = now - item['creation_time']
+
+            if elapsed > ITEM_LIFESPAN:
+                pickups.remove(item)
+                continue
+
+            pulse = (math.sin(now / 200.0) + 1) / 2
+            glow_size = item['img'].get_width() * (1.5 + pulse * 0.3)
+            
+            glow_color_map = {
+                'medikit': (*GREEN, 80),
+                'shield': (*CYAN, 80)
+            }
+            glow_color = glow_color_map.get(item['type'], (*WHITE, 50))
+
+            glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surface, glow_color, (glow_size / 2, glow_size / 2), glow_size / 2)
+            screen.blit(glow_surface, (item['x'] - glow_size / 2, item['y'] - glow_size / 2))
+
+            should_draw = True
+            if elapsed > ITEM_BLINK_TIME:
+                if (now // 150) % 2 != 0:
+                    should_draw = False
+            
+            if should_draw:
+                screen.blit(item['img'], (item['x'] - item['img'].get_width() // 2, item['y'] - item['img'].get_height() // 2))
+
             if math.hypot(item['x'] - player_pos[0], item['y'] - player_pos[1]) < 35:
                 if item['type'] == 'medikit':
                     player_health = min(player_max_health, player_health + 25)
                 elif item['type'] == 'shield':
                     player_shield = min(player_max_shield, player_shield + 40)
                 pickups.remove(item)
-
-        for item in pickups:
-            screen.blit(item['img'], (item['x'] - item['img'].get_width() // 2, item['y'] - item['img'].get_height() // 2))
 
         player_rect = current_player_img.get_rect(center=tuple(player_pos))
         screen.blit(current_player_img, player_rect)
@@ -384,15 +414,34 @@ def infinite_mode_loop():
         for p in projectiles:
             screen.blit(proyectil_img, (p['x'] - proyectil_img.get_width() // 2, p['y'] - proyectil_img.get_height() // 2))
 
-        # HUD para Modo Infinito
+        # MODIFICACIÓN: HUD para modo infinito con cronómetro
         screen.blit(info_font.render(f"Puntuación: {score}", True, WHITE), (10, 10))
-        draw_health_bar(10, HEIGHT - 70, 200, 25, player_health, player_max_health, WHITE, GREEN, DARK_RED)
-        screen.blit(medikit_img, (10 + 200 + 5, HEIGHT - 70))
-        draw_shield_bar(10, HEIGHT - 35, 200, 25, player_shield, player_max_shield, WHITE, CYAN, DARK_BLUE)
-        screen.blit(shield_img, (10 + 200 + 5, HEIGHT - 35))
+        
+        # Calcular y mostrar el cronómetro
+        survival_time_ms = now - start_time
+        survival_seconds = survival_time_ms // 1000
+        minutes = survival_seconds // 60
+        seconds = survival_seconds % 60
+        timer_text = f"Tiempo: {minutes:02d}:{seconds:02d}"
+        screen.blit(info_font.render(timer_text, True, WHITE), (WIDTH - 150, 10))
+
+        health_bar_y = HEIGHT - 70
+        shield_bar_y = HEIGHT - 35
+        bar_height = 25
+        
+        draw_health_bar(10, health_bar_y, 200, bar_height, player_health, player_max_health, WHITE, GREEN, DARK_RED, "Salud", "above")
+        icon_y_medikit = health_bar_y + (bar_height / 2) - (medikit_img.get_height() / 2)
+        screen.blit(medikit_img, (10 + 200 + 5, icon_y_medikit))
+
+        draw_shield_bar(10, shield_bar_y, 200, bar_height, player_shield, player_max_shield, WHITE, CYAN, DARK_BLUE)
+        icon_y_shield = shield_bar_y + (bar_height / 2) - (shield_img.get_height() / 2)
+        screen.blit(shield_img, (10 + 200 + 5, icon_y_shield))
 
         if player_health <= 0:
-            mostrar_pantalla_info("¡Has muerto!", f"Sobreviviste hasta alcanzar una puntuación de: {score}\n¡Inténtalo de nuevo!", volver_a_menu=True)
+            # MODIFICACIÓN: Mensaje de muerte con tiempo y puntuación
+            death_message = (f"Puntuación final: {score}\n"
+                             f"Has sobrevivido por {minutes:02d}:{seconds:02d} minutos.")
+            mostrar_pantalla_info("¡Has muerto!", death_message, volver_a_menu=True)
             running = False
 
         pygame.display.flip()
@@ -424,10 +473,18 @@ def game_loop(starting_level):
     shoot_delay = 500
     last_shot_time = pygame.time.get_ticks()
     enemies = []
-    enemy_base_speed = 1.5 + (starting_level - 1) * 0.5
-    enemy_spawn_delay = 1500 - (starting_level - 1) * 200
-    enemy_spawn_delay = max(400, enemy_spawn_delay)
+    
+    # MODIFICACIÓN: Parámetros de spawn específicos para cada nivel
+    level_configs = {
+        1: {'speed': 1.5, 'delay': 1500},
+        2: {'speed': 2.0, 'delay': 1200},
+        3: {'speed': 2.5, 'delay': 900}
+    }
+    config = level_configs.get(starting_level, {'speed': 1.5, 'delay': 1500})
+    enemy_base_speed = config['speed']
+    enemy_spawn_delay = config['delay']
     enemy_speed = enemy_base_speed
+
     last_enemy_spawn = pygame.time.get_ticks()
     jefe_activo = False
     jefe_pos = None
@@ -449,6 +506,7 @@ def game_loop(starting_level):
 
     while running:
         clock.tick(60)
+        now = pygame.time.get_ticks()
         screen.blit(fondo_juego_img, (0, 0))
 
         for stain in blood_stains[:]:
@@ -497,8 +555,6 @@ def game_loop(starting_level):
         if frame_index >= len(current_animation_list):
             frame_index = 0
         current_player_img = current_animation_list[int(frame_index)]
-
-        now = pygame.time.get_ticks()
 
         if now - last_shot_time >= shoot_delay:
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -712,7 +768,6 @@ def mode_selection_menu():
 
         def return_to_main_menu():
             nonlocal mode_menu_running
-            mode_menu_running = False
             global show_mode_selection, show_menu
             show_mode_selection = False
             show_menu = True
@@ -816,6 +871,4 @@ while True:
         level_selection_menu()
 
     elif run_game:
-        # Los bucles de juego se manejan dentro de sus propias funciones.
-        # Esta rama se deja vacía intencionadamente.
         pass
